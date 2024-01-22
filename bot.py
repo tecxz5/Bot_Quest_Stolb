@@ -57,42 +57,40 @@ def start_survey(message):
             bot.send_photo(message.chat.id, photo=answer['image'])
             bot.send_message(message.chat.id, f"{i + 1}. {answer['text']}", reply_markup=types.InlineKeyboardMarkup().add(types.InlineKeyboardButton(text=str(i + 1), callback_data=str(i))))
 
-@bot.message_handler(commands=['restart'])
-def restart_quest(message):
-    if message.chat.id in quest_statuses and quest_statuses[message.chat.id]:
-        quest_statuses[message.chat.id] = False
-        bot.send_message(message.chat.id, "Квест успешно перезапущен.")
-    else:
-        bot.send_message(message.chat.id, "Квест еще не был начат.")
-
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
-    answer_id = int(call.data)
-    questions = load_questions()
+    try:
+        answer_id = int(call.data)
+        questions = load_questions()
 
-    # начат ли квест
-    if call.message.chat.id not in current_questions:
-        current_questions[call.message.chat.id] = 0
+        # начат ли квест
+        if call.message.chat.id not in current_questions:
+            current_questions[call.message.chat.id] = 0
 
-    answer = find_answer_by_id(answer_id, questions, current_questions[call.message.chat.id])
+        answer = find_answer_by_id(answer_id, questions, current_questions[call.message.chat.id])
 
-    if 'winMessage' in answer or 'loseMessage' in answer:
         if 'winMessage' in answer:
             bot.send_message(call.message.chat.id, answer['winMessage'])
             bot.send_message(call.message.chat.id, "Поздравляем, вы выиграли!")
-        else:
+            quest_statuses[call.message.chat.id] = False
+            raise StopIteration("Quest completed successfully")
+        elif 'loseMessage' in answer:
             bot.send_message(call.message.chat.id, answer['loseMessage'])
             bot.send_message(call.message.chat.id, "К сожалению, вы проиграли.")
-        quest_statuses[call.message.chat.id] = False
-    else:
-        current_questions[call.message.chat.id] = answer['nextQuestion']
-        if current_questions[call.message.chat.id] < len(questions):
-            next_question = get_question(current_questions[call.message.chat.id], questions)
-            bot.send_message(call.message.chat.id, next_question['question'], parse_mode='html')
-            for i, answer in enumerate(next_question['answers']):
-                bot.send_photo(call.message.chat.id, photo=answer['image'])
-                bot.send_message(call.message.chat.id, f"{i + 1}. {answer['text']}",
-                                 reply_markup=types.InlineKeyboardMarkup().add(
-                                     types.InlineKeyboardButton(text=str(i + 1), callback_data=str(i))))
+            quest_statuses[call.message.chat.id] = False
+            raise StopIteration("Quest failed")
+        else:
+            next_question_index = answer['nextQuestion'] - 1
+            if next_question_index is not None and next_question_index < len(questions):
+                current_questions[call.message.chat.id] = next_question_index
+                next_question = get_question(current_questions[call.message.chat.id], questions)
+                bot.send_message(call.message.chat.id, next_question['question'], parse_mode='html')
+                for i, answer in enumerate(next_question['answers']):
+                    bot.send_photo(call.message.chat.id, photo=answer['image'])
+                    bot.send_message(call.message.chat.id, f"{i + 1}. {answer['text']}",
+                                     reply_markup=types.InlineKeyboardMarkup().add(
+                                         types.InlineKeyboardButton(text=str(i + 1), callback_data=str(i))))
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 bot.polling()
