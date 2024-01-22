@@ -22,7 +22,7 @@ def start_survey(message):
     global completed_quests
     completed_quests[message.chat.id] = False
 #выше находится некая логика бота говорящая как и с чем работать, только смысл кромешную логику расписывать в отдельном файле
-bot = telebot.TeleBot('6942998618:AAHY2-lrqKfJOOAzuvRcW0lT-7Yo5HkwwJE')
+bot = telebot.TeleBot('')
 
 @bot.message_handler(commands=['start'])
 def start_command(message):
